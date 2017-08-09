@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/apoydence/pubsub"
+	"github.com/apoydence/stream-aggregator/internal/traverser"
 )
 
 // StreamAggregator takes a dynamic list of producers and writes to interested
@@ -17,7 +18,7 @@ import (
 // writing to the consumer.
 type StreamAggregator struct {
 	ps   *pubsub.PubSub
-	trav notificationTrav
+	trav traverser.Traverser
 	log  *log.Logger
 
 	mu         sync.Mutex
@@ -82,10 +83,10 @@ func (a *StreamAggregator) AddProducer(key string, p Producer) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	a.ps.Publish(producerNotification{
-		added:    true,
-		key:      key,
-		producer: p,
+	a.ps.Publish(traverser.Notification{
+		Added:    true,
+		Key:      key,
+		Producer: p,
 	}, a.trav)
 }
 
@@ -94,9 +95,9 @@ func (a *StreamAggregator) RemoveProducer(key string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	a.ps.Publish(producerNotification{
-		added: false,
-		key:   key,
+	a.ps.Publish(traverser.Notification{
+		Added: false,
+		Key:   key,
 	}, a.trav)
 }
 
@@ -123,8 +124,8 @@ func (a *StreamAggregator) Consume(ctx context.Context, request interface{}, opt
 		unsubscribes = append(unsubscribes, unsubscribe)
 	}
 
-	unsubscribe := a.whenProducersAreChanged(true, "", func(n producerNotification) {
-		u := a.startProducer(ctx, n.key, request, c, n.producer, &wg)
+	unsubscribe := a.whenProducersAreChanged(true, "", func(n traverser.Notification) {
+		u := a.startProducer(ctx, n.Key, request, c, n.Producer, &wg)
 		unsubscribes = append(unsubscribes, u)
 	})
 
@@ -167,7 +168,7 @@ func (a *StreamAggregator) startProducer(
 	wg.Add(1)
 	producerCtx, cancel := context.WithCancel(ctx)
 
-	unsubscribe := a.whenProducersAreChanged(false, key, func(n producerNotification) {
+	unsubscribe := a.whenProducersAreChanged(false, key, func(n traverser.Notification) {
 		cancel()
 	})
 
@@ -203,42 +204,32 @@ func (f consumeOptionFunc) configure(c *consumeConfig) {
 }
 
 func (a *StreamAggregator) globalListSubscribe() {
-	a.whenProducersAreChanged(true, "", func(n producerNotification) {
-		a.globalList[n.key] = n.producer
+	a.whenProducersAreChanged(true, "", func(n traverser.Notification) {
+		a.globalList[n.Key] = n.Producer
 	})
 
-	a.whenProducersAreChanged(false, "", func(n producerNotification) {
-		delete(a.globalList, n.key)
+	a.whenProducersAreChanged(false, "", func(n traverser.Notification) {
+		delete(a.globalList, n.Key)
 	})
 }
 
 func (a *StreamAggregator) whenProducersAreChanged(
 	added bool,
 	key string,
-	f func(n producerNotification),
+	f func(n traverser.Notification),
 ) func() {
-	filter := &producerNotificationFilter{
-		added: &added,
+	filter := &traverser.NotificationFilter{
+		Added: &added,
 	}
 
 	if key != "" {
-		filter.key = &key
+		filter.Key = &key
 	}
 
 	path := a.trav.CreatePath(filter)
 
 	return a.ps.Subscribe(pubsub.SubscriptionFunc(func(data interface{}) {
-		n := data.(producerNotification)
+		n := data.(traverser.Notification)
 		f(n)
 	}), pubsub.WithPath(path))
 }
-
-// producerNotification is used in the PubSub to alert upon producers coming
-// and going.
-type producerNotification struct {
-	added    bool
-	key      string
-	producer Producer
-}
-
-//go:generate pubsub-gen --struct-name=github.com/apoydence/stream-aggregator.producerNotification --package=streamaggregator --traverser=notificationTrav --output=$GOPATH/src/github.com/apoydence/stream-aggregator/notification_traverser.gen.go --blacklist-fields=producerNotification.producer
