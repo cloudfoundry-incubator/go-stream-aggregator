@@ -1,5 +1,5 @@
 # stream-aggregator
-[![GoDoc][go-doc-badge]][go-doc][![travis][travis-badge]][travis]
+[![GoDoc][go-doc-badge]][go-doc] [![travis][travis-badge]][travis]
 
 A stream aggregator is used to aggregate data in the [fan-in](https://blog.golang.org/pipelines) scheme. 
 
