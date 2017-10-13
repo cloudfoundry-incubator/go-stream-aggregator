@@ -6,7 +6,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/apoydence/pubsub"
+	"code.cloudfoundry.org/go-pubsub"
 	"github.com/apoydence/stream-aggregator/internal/traverser"
 )
 
@@ -17,9 +17,8 @@ import (
 // producers are available when a consumer is added, each producer will start
 // writing to the consumer.
 type StreamAggregator struct {
-	ps   *pubsub.PubSub
-	trav traverser.Traverser
-	log  *log.Logger
+	ps  *pubsub.PubSub
+	log *log.Logger
 
 	mu         sync.Mutex
 	globalList map[string]Producer
@@ -87,7 +86,7 @@ func (a *StreamAggregator) AddProducer(key string, p Producer) {
 		Added:    true,
 		Key:      key,
 		Producer: p,
-	}, a.trav)
+	}, traverser.TraverserTraverse)
 }
 
 // RemoveProducer removes a producer from the StreamAggregator.
@@ -98,7 +97,7 @@ func (a *StreamAggregator) RemoveProducer(key string) {
 	a.ps.Publish(traverser.Notification{
 		Added: false,
 		Key:   key,
-	}, a.trav)
+	}, traverser.TraverserTraverse)
 }
 
 // Consume starts consuming data from all the given Producers. As producers
@@ -226,10 +225,10 @@ func (a *StreamAggregator) whenProducersAreChanged(
 		filter.Key = &key
 	}
 
-	path := a.trav.CreatePath(filter)
+	path := traverser.TraverserCreatePath(filter)
 
-	return a.ps.Subscribe(pubsub.SubscriptionFunc(func(data interface{}) {
+	return a.ps.Subscribe(func(data interface{}) {
 		n := data.(traverser.Notification)
 		f(n)
-	}), pubsub.WithPath(path))
+	}, pubsub.WithPath(path))
 }

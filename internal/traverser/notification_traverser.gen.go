@@ -1,66 +1,95 @@
 package traverser
 
 import (
-  "github.com/apoydence/pubsub"
-  "fmt"
+	"code.cloudfoundry.org/go-pubsub"
+	"hash/crc64"
 )
-type Traverser struct{}
- func NewTraverser()Traverser{ return Traverser{} }
 
-func (s Traverser) Traverse(data interface{}, currentPath []string) pubsub.Paths {
-	return s._Added(data, currentPath)
+func TraverserTraverse(data interface{}) pubsub.Paths {
+	return _Added(data)
 }
 
-	func (s Traverser) done(data interface{}, currentPath []string) pubsub.Paths {
-	return pubsub.FlatPaths(nil)
+func done(data interface{}) pubsub.Paths {
+	return pubsub.Paths(func(idx int, data interface{}) (path uint64, nextTraverser pubsub.TreeTraverser, ok bool) {
+		return 0, nil, false
+	})
 }
 
-func (s Traverser) _Added(data interface{}, currentPath []string) pubsub.Paths {
-	
-  return pubsub.NewPathsWithTraverser([]string{"", fmt.Sprintf("%v", data.(Notification).Added)}, pubsub.TreeTraverserFunc(s._Key))
+func hashBool(data bool) uint64 {
+	if data {
+		return 1
+	}
+	return 0
 }
 
-func (s Traverser) _Key(data interface{}, currentPath []string) pubsub.Paths {
-	
-  return pubsub.NewPathsWithTraverser([]string{"", fmt.Sprintf("%v", data.(Notification).Key)}, pubsub.TreeTraverserFunc(s.done))
+var tableECMA = crc64.MakeTable(crc64.ECMA)
+
+func _Added(data interface{}) pubsub.Paths {
+
+	return pubsub.Paths(func(idx int, data interface{}) (path uint64, nextTraverser pubsub.TreeTraverser, ok bool) {
+		switch idx {
+		case 0:
+			return 0, pubsub.TreeTraverser(_Key), true
+		case 1:
+
+			return hashBool(data.(Notification).Added), pubsub.TreeTraverser(_Key), true
+		default:
+			return 0, nil, false
+		}
+	})
 }
 
-type NotificationFilter struct{
-Added *bool
-Key *string
+func _Key(data interface{}) pubsub.Paths {
 
+	return pubsub.Paths(func(idx int, data interface{}) (path uint64, nextTraverser pubsub.TreeTraverser, ok bool) {
+		switch idx {
+		case 0:
+			return 0, pubsub.TreeTraverser(done), true
+		case 1:
+
+			return crc64.Checksum([]byte(data.(Notification).Key), tableECMA), pubsub.TreeTraverser(done), true
+		default:
+			return 0, nil, false
+		}
+	})
 }
 
-func (g Traverser) CreatePath(f *NotificationFilter) []string {
-if f == nil {
-	return nil
-}
-var path []string
-
-
-
-
-var count int
-if count > 1 {
-	panic("Only one field can be set")
+type NotificationFilter struct {
+	Added *bool
+	Key   *string
 }
 
+func TraverserCreatePath(f *NotificationFilter) []uint64 {
+	if f == nil {
+		return nil
+	}
+	var path []uint64
 
-if f.Added != nil {
-	path = append(path, fmt.Sprintf("%v", *f.Added))
-}else{
-	path = append(path, "")
-}
+	var count int
+	if count > 1 {
+		panic("Only one field can be set")
+	}
 
-if f.Key != nil {
-	path = append(path, fmt.Sprintf("%v", *f.Key))
-}else{
-	path = append(path, "")
-}
+	if f.Added != nil {
 
+		path = append(path, hashBool(*f.Added))
+	} else {
+		path = append(path, 0)
+	}
 
+	if f.Key != nil {
 
+		path = append(path, crc64.Checksum([]byte(*f.Key), tableECMA))
+	} else {
+		path = append(path, 0)
+	}
 
+	for i := len(path) - 1; i >= 1; i-- {
+		if path[i] != 0 {
+			break
+		}
+		path = path[:i]
+	}
 
-return path
+	return path
 }
