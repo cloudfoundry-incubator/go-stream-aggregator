@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
+	streamaggregator "code.cloudfoundry.org/go-stream-aggregator"
 	"github.com/apoydence/onpar"
 	. "github.com/apoydence/onpar/expect"
 	. "github.com/apoydence/onpar/matchers"
-	streamaggregator "github.com/apoydence/stream-aggregator"
 )
 
 type TSA struct {

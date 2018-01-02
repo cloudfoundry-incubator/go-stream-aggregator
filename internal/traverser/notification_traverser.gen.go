@@ -1,8 +1,9 @@
 package traverser
 
 import (
-	"code.cloudfoundry.org/go-pubsub"
 	"hash/crc64"
+
+	"code.cloudfoundry.org/go-pubsub"
 )
 
 func TraverserTraverse(data interface{}) pubsub.Paths {

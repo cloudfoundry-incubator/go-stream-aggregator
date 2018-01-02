@@ -2,7 +2,7 @@ package traverser
 
 import "context"
 
-//go:generate pubsub-gen --struct-name=github.com/apoydence/stream-aggregator/internal/traverser.Notification --package=traverser --traverser=Traverser --output=$GOPATH/src/github.com/apoydence/stream-aggregator/internal/traverser/notification_traverser.gen.go --blacklist-fields=Notification.Producer
+//go:generate pubsub-gen --struct-name=code.cloudfoundry.org/go-stream-aggregator/internal/traverser.Notification --package=traverser --traverser=Traverser --output=$GOPATH/src/code.cloudfoundry.org/go-stream-aggregator/internal/traverser/notification_traverser.gen.go --blacklist-fields=Notification.Producer
 
 // Producer is a type copy of streamaggregator.Producer
 type Producer interface {

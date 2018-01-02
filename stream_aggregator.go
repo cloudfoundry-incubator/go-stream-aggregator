@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"code.cloudfoundry.org/go-pubsub"
-	"github.com/apoydence/stream-aggregator/internal/traverser"
+	"code.cloudfoundry.org/go-stream-aggregator/internal/traverser"
 )
 
 // StreamAggregator takes a dynamic list of producers and writes to interested
