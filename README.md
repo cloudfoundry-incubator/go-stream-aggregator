@@ -3,6 +3,14 @@
 
 A stream aggregator is used to aggregate data in the [fan-in](https://blog.golang.org/pipelines) scheme.
 
+### Usage
+
+This repository should be imported as:
+
+```
+import streamaggregator "code.cloudfoundry.org/go-stream-aggregator"
+```
+
 ### Dynamic Producers and Consumers
 It manages producers and consumers to be added and removed freely.
 
